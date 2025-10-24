@@ -151,7 +151,7 @@ src/
   Sales123.Sales.WebApi/        # Controllers, Middlewares, Swagger examples, Program
 
 tests/
-  Sales123.Sales.Test/          # xUnit + FluentAssertions + Moq (Domain + Application)
+  Sales123.Sales.Test/          # xUnit
 ```
 
 ---
