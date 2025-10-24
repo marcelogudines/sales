@@ -14,11 +14,9 @@ builder.Services.AddSalesInfra(builder.Configuration)
                 .AddApplicationServices()
                 .AddHttpClientLogging();
 
-// HealthChecks básicos
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("OK"));
 
-// >>> OBS: registra métricas e hosted service de resumo periódico
 builder.Services.AddSingleton<RequestMetrics>();
 builder.Services.AddHostedService<MetricsSummaryHostedService>();
 
@@ -30,7 +28,6 @@ builder.Services.AddRouting(o =>
 
 var app = builder.Build();
 
-// ===== Logs de ciclo de vida + HealthCheck inicial =====
 var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
 var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
 var health = app.Services.GetRequiredService<HealthCheckService>();
@@ -63,7 +60,6 @@ lifetime.ApplicationStarted.Register(() =>
 lifetime.ApplicationStopping.Register(() => startupLogger.LogInformation("Application stopping"));
 lifetime.ApplicationStopped.Register(() => startupLogger.LogInformation("Application stopped"));
 
-// ===== Pipeline =====
 app.UseCorrelationId();
 app.UseRequestBuffering();
 app.UseGlobalExceptionHandling();
@@ -71,12 +67,10 @@ app.UseRequestResponseLogging();
 
 app.UseSalesSwaggerUi();
 
-// Endpoints de health (mantém /health e adiciona padrões)
 app.MapHealthChecks("/health"); // compat
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = r => r.Name == "self" });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => true });
 
-// >>> Snapshot JSON das métricas (sem framework externo)
 app.MapGet("/metrics-app", (RequestMetrics m) => Results.Json(m.Snapshot()));
 
 app.MapControllers();

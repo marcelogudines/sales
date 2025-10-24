@@ -35,9 +35,9 @@ public sealed class SaleService : ISaleService
         if (!customer.IsValid) notifications.Merge(customer.Notifications);
         if (!branch.IsValid) notifications.Merge(branch.Notifications);
 
-        // Monta itens + coleta notificações (DRY)
+       
         var itemsRes = BuildItemInputs(command.Items, notifications);
-        if (notifications.HasErrors) // erros de customer/branch/itens
+        if (notifications.HasErrors)
             return Result<Sale>.From(null, notifications);
 
         var saleRes = Sale.Create(command.Number, command.SaleDate, customer.Value!, branch.Value!, itemsRes);

@@ -3,13 +3,6 @@ using System.Collections.Concurrent;
 
 namespace Sales123.Sales.WebApi.Support
 {
-    /// <summary>
-    /// Métricas in-memory, sem libs externas.
-    /// - Totais (requests, 4xx, 5xx)
-    /// - Por rota (METHOD + path): contagem, 4xx/5xx e buckets de latência
-    /// - p95/p99 aproximados por buckets
-    /// Exposto via GET /metrics-app (Snapshot) e logado periodicamente pelo MetricsSummaryHostedService.
-    /// </summary>
     public sealed class RequestMetrics
     {
         public const string ActivitySourceName = "Sales123.Sales.WebApi";
@@ -19,7 +12,6 @@ namespace Sales123.Sales.WebApi.Support
         private long _totalServerErrors;
         private long _totalClientErrors;
 
-        // <10, <50, <100, <250, <500, <1000, >=1000 ms
         private static readonly int[] _edges = new[] { 10, 50, 100, 250, 500, 1000 };
         private const int BucketsCount = 7;
 
@@ -99,7 +91,6 @@ namespace Sales123.Sales.WebApi.Support
             };
         }
 
-        /// <summary>Resumo forte-mente tipado para o hosted service.</summary>
         public IReadOnlyList<RouteSummary> TopRoutesByP95(int top = 3)
         {
             return _routes.Select(kv => new RouteSummary(
@@ -150,9 +141,9 @@ namespace Sales123.Sales.WebApi.Support
                 cum += buckets[i];
                 if (cum >= target)
                 {
-                    // retorna o limite superior do bucket como aproximação do percentil
+                  
                     if (i < _edges.Length) return _edges[i];
-                    return 1200; // ">=1s": devolve um valor alto representativo
+                    return 1200; 
                 }
             }
             return 1200;

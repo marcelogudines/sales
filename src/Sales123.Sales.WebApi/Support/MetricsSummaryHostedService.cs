@@ -22,7 +22,7 @@ public sealed class MetricsSummaryHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // pequeno atraso inicial para evitar ruído na subida
+      
         await Task.Delay(TimeSpan.FromSeconds(Math.Min(10, _intervalSec)), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -32,14 +32,14 @@ public sealed class MetricsSummaryHostedService : BackgroundService
                 var (total, e4, e5) = _metrics.Totals();
                 var top = _metrics.TopRoutesByP95(3);
 
-                // Ex.: "Metrics window=60s total=120 4xx=3 5xx=0 | TOP: GET /api/sales p95=42 p99=95 (87) ; POST /api/sales p95=61 p99=120 (18)"
+              
                 var topFmt = string.Join(" ; ",
                     top.Select(r => $"{r.Route} p95={r.P95Ms} p99={r.P99Ms} ({r.Count})"));
 
                 _logger.LogInformation("Metrics window={Window}s total={Total} 4xx={E4} 5xx={E5} | top={Top}",
                     _intervalSec, total, e4, e5, topFmt);
 
-                // Alerta se alguma rota estourar p99 acima do limite
+            
                 foreach (var r in top.Where(r => r.P99Ms >= _alertP99Ms))
                 {
                     _logger.LogWarning("Metrics alert p99Ms={P99} route={Route} (count={Count}) threshold={Threshold}",

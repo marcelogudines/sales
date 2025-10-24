@@ -10,7 +10,7 @@ namespace Sales123.Sales.WebApi.Support
         private readonly RequestDelegate _next;
         private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
         private readonly RequestMetrics? _metrics;
-        private readonly int _slowMs; // <<< novo: threshold p/ slow requests
+        private readonly int _slowMs;
 
         private const int MaxBodyChars = 4000;
 
@@ -25,7 +25,7 @@ namespace Sales123.Sales.WebApi.Support
         public RequestResponseLoggingMiddleware(
             RequestDelegate next,
             ILogger<RequestResponseLoggingMiddleware> logger,
-            IConfiguration config,                    // <<< novo: para ler OBS_SLOW_MS
+            IConfiguration config,                   
             RequestMetrics? metrics = null)
         {
             _next = next;
@@ -87,7 +87,7 @@ namespace Sales123.Sales.WebApi.Support
                 return;
             }
 
-            // Pesadas (POST/PUT/PATCH/DELETE) - loga req/resp
+          
             var swHeavy = Stopwatch.StartNew();
 
             var correlationId = ctx.Request.Headers["x-correlation-id"].FirstOrDefault()
