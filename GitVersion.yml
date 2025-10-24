@@ -1,0 +1,29 @@
+mode: ContinuousDeployment
+next-version: 0.1.0
+tag-prefix: 'v'
+
+branches:
+  main:
+    regex: ^main$
+    tag: ''
+    is-release-branch: true
+    increment: Patch
+  develop:
+    regex: ^develop$
+    tag: alpha
+    increment: Minor
+  feature:
+    regex: ^(feature|feat|bugfix|chore|refactor|test)\/
+    tag: useBranchName
+    increment: Inherit
+  release:
+    regex: ^release[\/-]
+    tag: rc
+    is-release-branch: true
+    increment: Patch
+  hotfix:
+    regex: ^hotfix[\/-]
+    tag: hotfix
+    increment: Patch
+
+commit-message-incrementing: Disabled
