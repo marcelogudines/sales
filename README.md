@@ -34,7 +34,7 @@ dotnet run --project src/Sales123.Sales.WebApi
 ```
 
 - A **UI do Swagger** está na **raiz** (`/`).
-- O endereço/porta aparecem no console ao iniciar.
+
 
 ---
 
@@ -75,7 +75,6 @@ dotnet test
 
 ## Contratos REST (visão rápida)
 
-> Todas as rotas em **minúsculas**.
 
 - `POST /api/sales` — cria venda
 - `GET /api/sales` — lista paginada
@@ -108,7 +107,7 @@ curl -X POST http://localhost:5000/api/sales   -H "Content-Type: application/jso
 
 ---
 
-## Envelope de resposta
+## resposta
 
 Formato unificado:
 
@@ -117,7 +116,6 @@ Formato unificado:
   "success": true,
   "data": { /* ... */ },
   "traceId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "elapsedMs": 12,
   "notifications": [
     { "code": "sale.already_exists", "message": "Venda já existe...", "path": "number", "severity": 2 }
   ]
@@ -127,14 +125,13 @@ Formato unificado:
 - `success`: `true` ou `false`
 - `data`: objeto de retorno (ou `null`)
 - `traceId`: mesmo valor do `x-correlation-id` (se enviado/gerado)
-- `elapsedMs`: tempo de execução
 - `notifications`: erros/alertas (ex.: validação, conflito)
 
 ---
 
 ## Erros & status codes
 
-- **409 Conflict** — venda já existe (`POST /api/sales` idempotente).  
+- **409 Conflict** — venda já existe (`POST /api/sales`).  
   Notificação: `sale.already_exists`.
 - **422 Unprocessable Entity** — violações de regra de negócio/validação.
 - **404 Not Found** — venda/item não encontrados.
