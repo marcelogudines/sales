@@ -10,7 +10,7 @@ using Sales123.Sales.WebApi.Support;
 namespace Sales123.Sales.WebApi.Controllers;
 
 [ApiController]
-[Route("api/sales")] // <<< tudo minúsculo
+[Route("api/sales")] 
 [Produces("application/json")]
 public class SalesController : ControllerBase
 {
