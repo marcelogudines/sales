@@ -53,7 +53,7 @@ dotnet test
 - Repositório **thread-safe** em memória.
 - Índices:
   - **Primário** por `Id`.
-  - **Secundário** por `(Number, BranchId)` para **idempotência** do `POST /api/sales`.
+  - **Secundário** por `(Number, BranchId)`.
 - **Importante:** todos os dados são **voláteis** — ao reiniciar a aplicação, tudo é perdido.  
 
 ---
@@ -136,7 +136,7 @@ Formato unificado:
 - **422 Unprocessable Entity** — violações de regra de negócio/validação.
 - **404 Not Found** — venda/item não encontrados.
 - **500 Internal Server Error** — exceção não tratada:
-  - resposta segue o **envelope** (`success=false`, `data=null`, `traceId`, `elapsedMs`, `notifications`).
+  - resposta segue o **envelope** (`success=false`, `data=null`, `traceId`, `notifications`).
   - evento é **emitido** com tipo raiz, linha e *stacktrace* amigável.
 
 ---
