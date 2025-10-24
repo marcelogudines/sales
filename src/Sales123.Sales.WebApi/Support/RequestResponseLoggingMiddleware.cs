@@ -10,6 +10,7 @@ namespace Sales123.Sales.WebApi.Support
         private readonly RequestDelegate _next;
         private readonly ILogger<RequestResponseLoggingMiddleware> _logger;
         private readonly RequestMetrics? _metrics;
+        private readonly int _slowMs; // <<< novo: threshold p/ slow requests
 
         private const int MaxBodyChars = 4000;
 
@@ -24,16 +25,17 @@ namespace Sales123.Sales.WebApi.Support
         public RequestResponseLoggingMiddleware(
             RequestDelegate next,
             ILogger<RequestResponseLoggingMiddleware> logger,
+            IConfiguration config,                    // <<< novo: para ler OBS_SLOW_MS
             RequestMetrics? metrics = null)
         {
             _next = next;
             _logger = logger;
             _metrics = metrics;
+            _slowMs = int.TryParse(config["OBS_SLOW_MS"], out var t) && t > 0 ? t : 500;
         }
 
         public async Task Invoke(HttpContext ctx)
         {
-          
             if (SkipPaths.Any(p => ctx.Request.Path.StartsWithSegments(p)))
             {
                 await _next(ctx);
@@ -42,7 +44,7 @@ namespace Sales123.Sales.WebApi.Support
 
             var method = ctx.Request.Method;
 
-        
+            // Leve (GET/HEAD)
             if (HttpMethods.IsGet(method) || HttpMethods.IsHead(method))
             {
                 var sw = Stopwatch.StartNew();
@@ -54,15 +56,27 @@ namespace Sales123.Sales.WebApi.Support
                 {
                     sw.Stop();
                     var status = ctx.Response.StatusCode;
-                    var url = ctx.Request.GetDisplayUrl(); 
+                    var url = ctx.Request.GetDisplayUrl();
+                    var elapsed = sw.ElapsedMilliseconds;
+
                     _logger.LogInformation(
                         "IN  {Method} {Url} -> {Status} in {Elapsed} ms",
                         method.ToUpperInvariant(),
                         url,
                         status,
-                        sw.ElapsedMilliseconds
+                        elapsed
                     );
-                    _metrics?.ObserveRequest(method, ctx.Request.Path, status, sw.ElapsedMilliseconds);
+
+                    if (elapsed > _slowMs)
+                    {
+                        _logger.LogWarning(
+                            "SlowRequest {Method} {PathWithQs} -> {Status} elapsedMs={Elapsed} thresholdMs={Threshold}",
+                            method.ToUpperInvariant(),
+                            ctx.Request.Path + ctx.Request.QueryString,
+                            status, elapsed, _slowMs);
+                    }
+
+                    _metrics?.ObserveRequest(method, ctx.Request.Path, status, elapsed);
                 }
                 return;
             }
@@ -73,6 +87,7 @@ namespace Sales123.Sales.WebApi.Support
                 return;
             }
 
+            // Pesadas (POST/PUT/PATCH/DELETE) - loga req/resp
             var swHeavy = Stopwatch.StartNew();
 
             var correlationId = ctx.Request.Headers["x-correlation-id"].FirstOrDefault()
@@ -102,18 +117,28 @@ namespace Sales123.Sales.WebApi.Support
                     ctx.Response.Body = original;
 
                     var status = ctx.Response.StatusCode;
+                    var elapsed = swHeavy.ElapsedMilliseconds;
 
                     _logger.LogInformation(
                         "IN  {Method} {Path} -> {Status} in {Elapsed} ms | req: {Req} | resp: {Resp}",
                         method.ToUpperInvariant(),
                         ctx.Request.Path,
                         status,
-                        swHeavy.ElapsedMilliseconds,
+                        elapsed,
                         reqBody,
                         Truncate(respText)
                     );
 
-                    _metrics?.ObserveRequest(method, ctx.Request.Path, status, swHeavy.ElapsedMilliseconds);
+                    if (elapsed > _slowMs)
+                    {
+                        _logger.LogWarning(
+                            "SlowRequest {Method} {PathWithQs} -> {Status} elapsedMs={Elapsed} thresholdMs={Threshold}",
+                            method.ToUpperInvariant(),
+                            ctx.Request.Path + ctx.Request.QueryString,
+                            status, elapsed, _slowMs);
+                    }
+
+                    _metrics?.ObserveRequest(method, ctx.Request.Path, status, elapsed);
                 }
             }
         }

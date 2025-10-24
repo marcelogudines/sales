@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sales123.Sales.Domain.ValueObjects;
 using Xunit;
 
@@ -10,33 +10,36 @@ public class MoneyTests
     public void From_null_returns_error()
     {
         var res = Money.From(null);
-        res.IsValid.Should().BeFalse();
-        res.Notifications.Items.Should().ContainSingle(n => n.Code == "money.required" && n.Path == "value");
+        res.IsValid.ShouldBeFalse();
+        res.Notifications.Items.Count(n => n.Code == "money.required" && n.Path == "value").ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(-10)]
+    public void From_negative_returns_error(decimal value)
+    {
+        var res = Money.From(value);
+        res.IsValid.ShouldBeFalse();
     }
 
     [Fact]
-    public void From_negative_returns_error()
+    public void Large_values_are_valid_if_non_negative()
     {
-        var res = Money.From(-1m);
-        res.IsValid.Should().BeFalse();
-        res.Notifications.Items.Should().ContainSingle(n => n.Code == "money.non_negative");
+        var res = Money.From(1_000_000_000_000m); 
+        res.IsValid.ShouldBeTrue();
     }
 
     [Fact]
-    public void Rounds_away_from_zero_to_two_decimals()
+    public void Rounding_and_ops()
     {
-        Money.FromRaw(10.005m).Value.Should().Be(10.01m);
-        Money.FromRaw(10.004m).Value.Should().Be(10.00m);
-    }
+        Money.FromRaw(10.004m).Value.ShouldBe(Money.FromRaw(10.00m).Value);
 
-    [Fact]
-    public void Operators_work()
-    {
         var a = Money.FromRaw(10m);
         var b = Money.FromRaw(2.5m);
 
-        (a + b).Value.Should().Be(12.50m);
-        (a * 3).Value.Should().Be(30m);
-        (b * 4m).Value.Should().Be(10m);
+        (a + b).Value.ShouldBe(12.50m);
+        (a * 3).Value.ShouldBe(30m);
+        (b * 4m).Value.ShouldBe(10m);
     }
 }

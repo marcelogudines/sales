@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sales123.Sales.Domain.Policies;
 using Xunit;
 
@@ -12,7 +12,7 @@ public class QuantityDiscountPolicyTests
     [InlineData(20, true)]
     [InlineData(21, false)]
     public void IsAllowed_range(int qty, bool allowed)
-        => QuantityDiscountPolicy.IsAllowed(qty).Should().Be(allowed);
+        => QuantityDiscountPolicy.IsAllowed(qty).ShouldBe(allowed);
 
     [Theory]
     [InlineData(1, 0)]
@@ -22,5 +22,5 @@ public class QuantityDiscountPolicyTests
     [InlineData(10, 20)]
     [InlineData(15, 20)]
     public void Discount_for_quantity(int qty, int expected)
-        => QuantityDiscountPolicy.DiscountPercentFor(qty).Should().Be(expected);
+        => QuantityDiscountPolicy.DiscountPercentFor(qty).ShouldBe(expected);
 }

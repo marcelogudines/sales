@@ -1,23 +1,25 @@
-﻿using Moq;
+using NSubstitute;
 using Sales123.Sales.Application.Abstractions;
 using Sales123.Sales.Application.Services;
 using Sales123.Sales.Domain.Abstractions;
 using Sales123.Sales.Domain.Aggregates;
-using Sales123.Sales.Domain.Events;
 
 namespace Sales123.Sales.Test;
 
 public sealed class SaleServiceSut
 {
-    public Mock<ISaleRepository> Repo { get; } = new();
-    public Mock<ISaleQueryRepository> Query { get; } = new();
-    public Mock<IDomainEventPublisher> Pub { get; } = new();
+    public ISaleRepository Repo { get; } = Substitute.For<ISaleRepository>();
+    public ISaleQueryRepository Query { get; } = Substitute.For<ISaleQueryRepository>();
+    public IDomainEventPublisher Pub { get; } = Substitute.For<IDomainEventPublisher>();
 
-    public SaleService Build() => new(Repo.Object, Query.Object, Pub.Object);
+    public SaleService Build() => new(Repo, Query, Pub);
 
     public void ShouldPublishEventsOnce() =>
-        Pub.Verify(p => p.Publish(It.Is<IEnumerable<IDomainEvent>>(e => e.Any())), Times.Once);
+        Pub.Received(1).Publish(Arg.Is<IEnumerable<IDomainEvent>>(e => e.Any()));
 
     public void ShouldNotPublish() =>
-        Pub.Verify(p => p.Publish(It.IsAny<IEnumerable<IDomainEvent>>()), Times.Never);
+        Pub.DidNotReceive().Publish(Arg.Any<IEnumerable<IDomainEvent>>());
+
+    public void ShouldPublishEvents(int times) =>
+        Pub.Received(times).Publish(Arg.Is<IEnumerable<IDomainEvent>>(e => e.Any()));
 }

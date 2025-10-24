@@ -25,7 +25,7 @@ public sealed class SaleService : ISaleService
     public Result<Sale> Create(CreateSaleCommand command)
     {
         if (command is null)
-            return Fail<Sale>("sale.command_required", "Comando de criação é obrigatório.", "command");
+            throw new ArgumentNullException(nameof(command));
 
         var notifications = new NotificationsBag();
 

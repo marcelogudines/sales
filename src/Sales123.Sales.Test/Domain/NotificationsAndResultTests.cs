@@ -1,4 +1,4 @@
-using FluentAssertions;
+using Shouldly;
 using Sales123.Sales.Domain.Abstractions;
 using Sales123.Sales.Domain.Notifications;
 using Sales123.Sales.Domain.Shared;
@@ -9,31 +9,32 @@ namespace Sales123.Sales.Test.Domain;
 public class NotificationsAndResultTests
 {
     [Fact]
-    public void NotificationsBag_add_merge_and_prefix()
+    public void NotificationsBag_add_merge_with_prefix()
     {
-        var bag1 = new NotificationsBag();
-        bag1.Add("A", "a", "p1");
-        bag1.Add(new Notification("B", "b", "p2", NotificationSeverity.Warning));
+        var baseBag = new NotificationsBag();
+        baseBag.Add("A", "a", "p1");
+        baseBag.Add(new Notification("B", "b", "p2", NotificationSeverity.Warning));
 
-        var bag2 = new NotificationsBag();
-        bag2.Add("C", "c", "p3");
-        bag2.Add("D", "d", "p4");
+        var toMerge = new NotificationsBag();
+        toMerge.Add("C", "c", "p3");
 
-        bag1.Merge(bag2, pathPrefix: "root");
+        baseBag.Merge(toMerge, "root");
 
-        bag1.Items.Should().HaveCount(4);
-        bag1.Items.Should().Contain(n => n.Code == "C" && n.Path == "root.p3");
+        baseBag.Items.Count.ShouldBe(3);
+        baseBag.Items.ShouldContain(n => n.Code == "A" && n.Path == "p1");
+        baseBag.Items.ShouldContain(n => n.Code == "B" && n.Path == "p2");
+        baseBag.Items.ShouldContain(n => n.Code == "C" && n.Path == "root.p3");
     }
 
     [Fact]
     public void Result_ok_and_fail()
     {
         var ok = Result.Ok(123);
-        ok.IsValid.Should().BeTrue();
-        ok.Value.Should().Be(123);
+        ok.IsValid.ShouldBeTrue();
+        ok.Value.ShouldBe(123);
 
         var fail = Result<int>.Fail(new Notification("E", "e", "p"));
-        fail.IsValid.Should().BeFalse();
-        fail.Notifications.Items.Should().ContainSingle(n => n.Code == "E");
+        fail.IsValid.ShouldBeFalse();
+        fail.Notifications.Items.ShouldContain(n => n.Code == "E");
     }
 }

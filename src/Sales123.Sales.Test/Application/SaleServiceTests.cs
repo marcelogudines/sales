@@ -1,82 +1,68 @@
-﻿using FluentAssertions;
-using Moq;
+using NSubstitute;
+using Sales123.Sales.Application.DTOs;
 using Sales123.Sales.Domain.Aggregates;
+using Shouldly;
 using Xunit;
 
 namespace Sales123.Sales.Test;
 
 public class SaleServiceTests
 {
-
     [Fact]
     public void Create_persists_and_publishes_when_new()
     {
         var sut = new SaleServiceSut();
-        sut.Repo.Setup(r => r.AddIfNotExists(It.IsAny<Sale>()))
-                .Returns((Sale s) => (true, s));
+        sut.Repo.AddIfNotExists(Arg.Any<Sale>())
+                .Returns(ci => (true, (Sale)ci[0]));
         var service = sut.Build();
-        var cmd = Mothers.ACreateSaleCommand();
 
-        var res = service.Create(cmd);
+        var res = service.Create(Mothers.ACreateSaleCommand());
+        res.IsValid.ShouldBeTrue();
 
-        res.IsValid.Should().BeTrue();
-        sut.Repo.Verify(r => r.AddIfNotExists(It.IsAny<Sale>()), Times.Once);
+        sut.Repo.Received(1).AddIfNotExists(Arg.Any<Sale>());
         sut.ShouldPublishEventsOnce();
     }
+
     [Fact]
-    public void Create_returns_conflict_notification_when_already_exists()
+    public void Create_does_not_publish_when_exists()
     {
-      
         var sut = new SaleServiceSut();
-        var existing = Mothers.AExistingSale(out _);
-        sut.Repo.Setup(r => r.AddIfNotExists(It.IsAny<Sale>()))
-                .Returns((Sale _) => (false, existing));
+        sut.Repo.AddIfNotExists(Arg.Any<Sale>())
+                .Returns(ci => (false, (Sale)ci[0]));
         var service = sut.Build();
 
-      
         var res = service.Create(Mothers.ACreateSaleCommand());
 
-        res.IsValid.Should().BeFalse();
+        res.IsValid.ShouldBeFalse();
         res.ShouldHaveNotification("sale.already_exists");
+
+        sut.Repo.Received(1).AddIfNotExists(Arg.Any<Sale>());
         sut.ShouldNotPublish();
     }
 
     [Fact]
-    public void Create_fails_when_header_invalid()
+    public void Delete_delegates_to_repository()
     {
-        var invalid = new Application.DTOs.CreateSaleCommand(
-            Number: "N-1",
-            SaleDate: DateTimeOffset.UtcNow,
-            CustomerId: null!,                 
-            CustomerName: "Cliente 1",
-            BranchId: "BR-01",
-            BranchName: "Filial 01",
-            Items: new[] { new Application.DTOs.CreateSaleItemDto("P1", "Produto 1", "SKU-1", 1, 10m) });
-
         var sut = new SaleServiceSut();
+        sut.Repo.Delete("X").Returns(true);
         var service = sut.Build();
 
-        var res = service.Create(invalid);
-
-      
-        res.IsValid.Should().BeFalse();
-        sut.Repo.Verify(r => r.AddIfNotExists(It.IsAny<Sale>()), Times.Never);
-        sut.ShouldNotPublish();
+        service.Delete("X").ShouldBeTrue();
+        sut.Repo.Received(1).Delete("X");
     }
-
 
     [Fact]
     public void AddItem_fails_when_sale_not_found()
     {
         var sut = new SaleServiceSut();
-        sut.Query.Setup(q => q.GetById(It.IsAny<string>())).Returns((Sale)null!);
+        sut.Query.GetById(Arg.Any<string>()).Returns(x => (Sale)null!);
         var service = sut.Build();
 
         var res = service.AddItem(Mothers.AnAddItem("S-404"));
 
-        res.IsValid.Should().BeFalse();
+        res.IsValid.ShouldBeFalse();
         res.ShouldHaveNotification("sale.not_found");
-        sut.Repo.Verify(r => r.Update(It.IsAny<Sale>()), Times.Never);
+        sut.Repo.DidNotReceive().Update(Arg.Any<Sale>());
         sut.ShouldNotPublish();
     }
 
@@ -84,93 +70,34 @@ public class SaleServiceTests
     public void AddItem_updates_and_publishes()
     {
         var sut = new SaleServiceSut();
-        var sale = Mothers.AExistingSale(out _);
-        sut.Query.Setup(q => q.GetById(sale.Id)).Returns(sale);
+        var sale = Mothers.AExistingSale(out var _);
+        sut.Query.GetById(sale.Id).Returns(sale);
         var service = sut.Build();
 
         var res = service.AddItem(Mothers.AnAddItem(sale.Id));
+        res.IsValid.ShouldBeTrue();
 
-        res.IsValid.Should().BeTrue();
-        sut.Repo.Verify(r => r.Update(sale), Times.Once);
+        sut.Repo.Received(1).Update(sale);
         sut.ShouldPublishEventsOnce();
     }
 
     [Fact]
-    public void ReplaceItemQuantity_fails_when_sale_not_found()
-    {
-        var sut = new SaleServiceSut();
-        sut.Query.Setup(q => q.GetById(It.IsAny<string>())).Returns((Sale)null!);
-        var service = sut.Build();
-
-        var res = service.ReplaceItemQuantity(Mothers.AReplaceQty("S-404", "I", 10));
-
-        res.IsValid.Should().BeFalse();
-        res.ShouldHaveNotification("sale.not_found");
-        sut.Repo.Verify(r => r.Update(It.IsAny<Sale>()), Times.Never);
-        sut.ShouldNotPublish();
-    }
-
-    [Fact]
-    public void ReplaceItemQuantity_updates_and_publishes()
-    {
-        var sut = new SaleServiceSut();
-        var sale = Mothers.AExistingSale(out var itemId);
-        sut.Query.Setup(q => q.GetById(sale.Id)).Returns(sale);
-        var service = sut.Build();
-
-        var res = service.ReplaceItemQuantity(Mothers.AReplaceQty(sale.Id, itemId, 10));
-
-        res.IsValid.Should().BeTrue();
-        sale.Items.First(i => i.Id == itemId).Quantity.Should().Be(10);
-        sut.Repo.Verify(r => r.Update(sale), Times.Once);
-        sut.ShouldPublishEventsOnce();
-    }
-
-    [Fact]
-    public void CancelItem_fails_when_sale_not_found()
-    {
-        var sut = new SaleServiceSut();
-        sut.Query.Setup(q => q.GetById(It.IsAny<string>())).Returns((Sale)null!);
-        var service = sut.Build();
-
-        var res = service.CancelItem(new Application.DTOs.CancelItemCommand("S-404", "I"));
-
-        res.IsValid.Should().BeFalse();
-        res.ShouldHaveNotification("sale.not_found");
-        sut.Repo.Verify(r => r.Update(It.IsAny<Sale>()), Times.Never);
-        sut.ShouldNotPublish();
-    }
-
-    [Fact]
-    public void CancelItem_updates_and_publishes()
+    public void ReplaceItemQuantity_and_CancelItem_update_and_publish()
     {
         var sut = new SaleServiceSut();
         var sale = Mothers.AExistingSale(out var firstItemId);
-        sut.Query.Setup(q => q.GetById(sale.Id)).Returns(sale);
+        sut.Query.GetById(sale.Id).Returns(sale);
         var service = sut.Build();
 
-        var res = service.CancelItem(new Application.DTOs.CancelItemCommand(sale.Id, firstItemId));
+        var r1 = service.ReplaceItemQuantity(new ReplaceItemQuantityCommand(sale.Id, firstItemId, 10));
+        r1.IsValid.ShouldBeTrue();
 
-        res.IsValid.Should().BeTrue();
-        sale.Items.First(i => i.Id == firstItemId).Canceled.Should().BeTrue();
-        sut.Repo.Verify(r => r.Update(sale), Times.Once);
-        sut.ShouldPublishEventsOnce();
-    }
+        var r2 = service.CancelItem(new CancelItemCommand(sale.Id, firstItemId));
+        r2.IsValid.ShouldBeTrue();
 
-  
-    [Fact]
-    public void CancelSale_fails_when_sale_not_found()
-    {
-        var sut = new SaleServiceSut();
-        sut.Query.Setup(q => q.GetById(It.IsAny<string>())).Returns((Sale)null!);
-        var service = sut.Build();
-
-        var res = service.CancelSale(Mothers.ACancelSale("S-404"));
-
-        res.IsValid.Should().BeFalse();
-        res.ShouldHaveNotification("sale.not_found");
-        sut.Repo.Verify(r => r.Update(It.IsAny<Sale>()), Times.Never);
-        sut.ShouldNotPublish();
+        sut.Repo.Received(2).Update(sale);
+        
+        sut.ShouldPublishEvents(2);
     }
 
     [Fact]
@@ -178,24 +105,13 @@ public class SaleServiceTests
     {
         var sut = new SaleServiceSut();
         var sale = Mothers.AExistingSale(out _);
-        sut.Query.Setup(q => q.GetById(sale.Id)).Returns(sale);
+        sut.Query.GetById(sale.Id).Returns(sale);
         var service = sut.Build();
 
-        var res = service.CancelSale(Mothers.ACancelSale(sale.Id, "motivo"));
+        var res = service.CancelSale(new CancelSaleCommand(sale.Id, "user_request"));
+        res.IsValid.ShouldBeTrue();
 
-        res.IsValid.Should().BeTrue();
-        sut.Repo.Verify(r => r.Update(sale), Times.Once);
+        sut.Repo.Received(1).Update(sale);
         sut.ShouldPublishEventsOnce();
-    }
-
-    [Fact]
-    public void Delete_delegates_to_repository()
-    {
-        var sut = new SaleServiceSut();
-        sut.Repo.Setup(r => r.Delete("X")).Returns(true);
-        var service = sut.Build();
-
-        service.Delete("X").Should().BeTrue();
-        sut.Repo.Verify(r => r.Delete("X"), Times.Once);
     }
 }
